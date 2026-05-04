@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Thêm/Sửa Món ăn</title>
+    <!-- Phúng Bootstrap 5 để làm Form nhanh đẹp chuẩn Responsive -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5" style="max-width: 600px;">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="mb-0">Thêm Mới Thực đơn</h2>
+        <a href="/logout" class="btn btn-outline-danger btn-sm">Đăng xuất</a>
+    </div>
+    <div class="card shadow mt-4">
+        
+        <!-- Khối thông báo lỗi trùng dữ liệu nếu có -->
+        <div th:if="${errorMessage}" class="alert alert-danger m-3" role="alert">
+            <span th:text="${errorMessage}"></span>
+        </div>
+
+        <!-- Khi Manger bấm Lưu, Request chạy về phương thức POST /admin/dishes/save gán object DishDTO -->
+        <form th:action="@{/admin/dishes/save}" th:object="${dishDTO}" method="POST" class="card-body">
+            
+            <!-- Truyền ID ngầm ẩn để Controller biết mà tạo mới (có id sẽ chuyển sang Update Mới tùy Facade) -->
+            <input type="hidden" th:field="*{id}" />
+
+            <!-- Nhập Mã Món -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Mã Món ăn (*)</label>
+                <!-- Dùng th:field tự động mapping biến "dishCode" vào field -->
+                <input type="text" class="form-control" th:field="*{dishCode}" placeholder="VD: M01" />
+                <!-- Nơi BindingResult cảnh báo nếu nhập tay vào không đạt (bôi đỏ báo lỗi từ Validation trong DTO) -->
+                <span class="text-danger small" th:if="${#fields.hasErrors('dishCode')}" th:errors="*{dishCode}">X Lỗi mã món</span>
+            </div>
+
+            <!-- Tên Món -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Tên Món ăn (*)</label>
+                <input type="text" class="form-control" th:field="*{name}" placeholder="VD: Phở Bò Bát Đá" />
+                <span class="text-danger small" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">X Lỗi tên</span>
+            </div>
+
+            <div class="row">
+                <!-- Chọn Danh mục (Khai Vị/Món chính...) -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Danh Mục (*)</label>
+                    <select class="form-select" th:field="*{category}">
+                        <option value="">-- Chọn danh mục --</option>
+                        <option value="Khai vị">Khai vị</option>
+                        <option value="Món chính">Món chính</option>
+                        <option value="Tráng miệng">Tráng miệng</option>
+                        <option value="Đồ uống">Đồ uống</option>
+                        <option value="Combo">Combo</option>
+                    </select>
+                    <span class="text-danger small" th:if="${#fields.hasErrors('category')}" th:errors="*{category}">X Lỗi Danh Mục</span>
+                </div>
+
+                <!-- Đơn giá Bán -->
+                <div class="col-md-6 mb-3">
+                    <label class="form-label fw-bold">Giá Bán (*)</label>
+                    <input type="number" class="form-control" th:field="*{price}" placeholder="100000" />
+                    <!-- Lỗi có thể là chưa nhập hoặc giá bị Nhỏ hơn 0 (Quy định tại @Min ở trên server DTO) -->
+                    <span class="text-danger small" th:if="${#fields.hasErrors('price')}" th:errors="*{price}">X Lỗi Giá Bán</span>
+                </div>
+            </div>
+
+            <!-- Mô tả Món -->
+            <div class="mb-3">
+                <label class="form-label fw-bold">Mô tả chi tiết</label>
+                <textarea class="form-control" th:field="*{description}" rows="3" placeholder="Cách nấu, nguồn gốc nguyên liệu..."></textarea>
+            </div>
+
+            <!-- Gạt bật Tắt lúc Nhập mới -->
+            <div class="form-check mb-4">
+                <!-- th:field tự bắt mapping giá trị True/False -->
+                <input class="form-check-input" type="checkbox" th:field="*{isAvailable}" id="authCheck">
+                <label class="form-check-label text-success" for="authCheck">
+                    Đang phục vụ mở bán ngày lập tức trên Giao diện Online Khách Đặt.
+                </label>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a th:href="@{/admin/dishes}" class="btn btn-secondary">Quay lại</a>
+                <button type="submit" class="btn btn-primary px-4">Lưu Dữ Liệu</button>
+            </div>
+        </form>
+    </div>
+</div>
+</body>
+</html>

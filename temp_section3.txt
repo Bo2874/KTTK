@@ -1,0 +1,164 @@
+﻿## 3. Các Biểu đồ Tuần tự (Sequence Diagrams)
+
+### 3.1. Biểu đồ: Khách đặt bàn và chọn món online
+Phản ánh toàn bộ luồng khách hàng gửi yêu cầu đăt bàn trên giao diện để tạo Đơn chờ xác nhận, từ tầng nhận request đến các tương tác DAO ở CSDL.
+
+**Các bước gọi luồng xử lý:**
+1. Khách hàng lựa chọn một hoặc nhiều mã bàn rảnh rỗi và chọn món ăn, nhập số lượng, sau đó click "Hoàn thành Đặt Bàn".
+2. Giao diện `table-selection.html` thực hiện submit form lên backend URL `/submit`.
+3. `BookingOrderController.submitBooking()` nhận request. Nó sử dụng object `TimeValidator.isValidBookingTime()` xác minh tính hợp lệ khung giờ.
+4. Lớp Controller lấy dữ liệu các bàn được yêu cầu, gọi `TableService.getAvailableTables(date, time)` để tạo whitelist các bàn còn khả dụng. Lọc để thu được set `availableTableIds`.
+5. Tiếp tục vòng lặp qua từng ID bàn gửi lên, gọi `TableService.findById()` để lấy ra danh sách Entity Bàn (`RestaurantTable`) hợp pháp `selectedTables`.
+6. Controller làm bước chính: Gọi `BookingFacade.createBookingForCustomer()` với đầy đủ object Khách, Danh sách Bàn đã duyệt và `formData` (chứa ID món).
+7. `BookingFacade` xác thực và móc lại Entity Khách thông qua `CustomerDAO.findById()`. 
+8. Xây map `dishQuantities`. Ứng với nội dung `formData`, lập tức lặp qua các ID món lấy ra `Dish` entity bằng `DishService.getDishById()`. Nếu hợp lệ nó nhồi số lượng món vào map thu gom.
+9. Khởi tạo mầm Đơn (status: `CHO_XAC_NHAN`, generate mã Code định danh). `BookingFacade` gọi `BookingOrderDAO.insert()` vào DB.
+10. Hệ thống tạo List `OrderDetail`. Ở từng thao tác tính giá `subtotal`, `BookingFacade` điều hướng lấy đơn giá lần nữa qua `DishService.getDishById()`. Kết nối Detail vào Đơn tổng.
+11. Lớp Facade tổng tỷ giá `totalAmount`. Gọi UPDATE lại thông số thành giá trị thật thông qua `BookingOrderDAO.update()`.
+12. Cuối cùng cho gọi `OrderDetailDAO.insertAll()` để lưu toàn bộ mảng `OrderDetail` gồm dữ liệu món của Khách. 
+13. Phương thức `submitBooking()` trong Controller nhận lại `BookingOrder`. Nó lưu trữ ID vào biến `session` sau đó làm thao tác trả redirect về màn `/booking/orders`. Mã phản hồi sẽ hiển thị danh sách đơn thành công.
+
+```mermaid
+sequenceDiagram
+    actor Customer as Khách Hàng
+    participant UI as <<Boundary>><br/>table-selection.html
+    participant Ctrl as <<Control>><br/>BookingOrderController
+    participant Val as <<Utility>><br/>TimeValidator
+    participant TableSvc as <<Service>><br/>TableService
+    participant Fac as <<Facade>><br/>BookingFacade
+    participant DishSvc as <<Service>><br/>DishService
+    participant OrderDAO as <<Repository>><br/>BookingOrderDAO
+    participant DtlDAO as <<Repository>><br/>OrderDetailDAO
+    participant View as <<Boundary>><br/>orders.html
+
+    Customer->>UI: 1. Đánh dấu bàn/món và nhấn Hoàn thành
+    activate UI
+    UI->>Ctrl: 2. Gọi POST /submit
+    activate Ctrl
+    
+    Ctrl->>Val: 3. isValidBookingTime(date, time)
+    activate Val
+    Val-->>Ctrl: true
+    deactivate Val
+
+    Ctrl->>TableSvc: 4. getAvailableTables(date, time)
+    activate TableSvc
+    TableSvc-->>Ctrl: Danh sách ID bàn khả dụng (whitelist)
+    deactivate TableSvc
+
+    Ctrl->>TableSvc: 5. findById(tableId) cho từng ID hợp lệ
+    activate TableSvc
+    TableSvc-->>Ctrl: Mảng Entity Bàn (selectedTables) 
+    deactivate TableSvc
+    
+    Ctrl->>Fac: 6. createBookingForCustomer(customer, tables, formData)
+    activate Fac
+    
+    Fac->>Fac: 7. Xác nhận Entity Customer qua CustomerDAO
+    
+    Fac->>DishSvc: 8. Lặp formData, getDishById(dishId)
+    activate DishSvc
+    DishSvc-->>Fac: Dish Entity hợp lệ
+    deactivate DishSvc
+    
+    Fac->>OrderDAO: 9. Khởi tạo Đơn, insert(bookingOrder)
+    activate OrderDAO
+    OrderDAO-->>Fac: Insert mầm đơn thành công
+    deactivate OrderDAO
+
+    Fac->>DishSvc: 10. Lặp map món, getDishById() tính tiền OrderDetail
+    activate DishSvc
+    DishSvc-->>Fac: Cấp đơn giá thật từng món
+    deactivate DishSvc
+
+    Fac->>OrderDAO: 11. update() cập nhật Cột tính tổng TotalAmount
+    activate OrderDAO
+    OrderDAO-->>Fac: Update thành công
+    deactivate OrderDAO
+    
+    Fac->>DtlDAO: 12. insertAll(orderDetails) lưu danh sách món
+    activate DtlDAO
+    DtlDAO-->>Fac: Lưu bảng trung gian Detail thành công
+    deactivate DtlDAO
+    
+    Fac-->>Ctrl: Trả về Entity BookingOrder hoàn chỉnh
+    deactivate Fac
+    
+    Ctrl-->>View: 13. SET SESSION & Điều hướng (redirect) qua /booking/orders
+    deactivate Ctrl
+    
+    activate View
+    View-->>Customer: Hiển thị giao diện danh sách đơn với ID cuối cùng
+    deactivate View
+    deactivate UI
+```
+
+### 3.2. Biểu đồ: Lễ tân cập nhật trạng thái đơn hàng
+
+Biểu đồ dành riêng cho khâu phê duyệt đơn đang chờ từ màn hình Nhân viên, đảm bảo quy định chống xếp trùng.
+
+**Các bước gọi luồng xử lý:**
+1. Lễ tân thao tác màn hình `dashboard.html`. Nhấn vào nút "Xác nhận".
+2. Hành động gọi POST thông qua đường dẫn `/confirm/{bookingId}` về `ReceptionistController`. 
+3. Controller thông qua hàm `confirmBooking()` tiến hành chặn lọc quyền với session. Sau đó gọi hàm tập trung `BookingFacade.confirmBookingAndUpdateTable(bookingId, employeeId)`.
+4. Nhạc trưởng `BookingFacade` điều phối trước `BookingService.findById(bookingId)` kiểm tra xem Booking có dính lỗi null hay Status không khớp ("CHO_XAC_NHAN").
+5. Gọi bộ lọc kiểm tra xung đột chồng lấp giữ chỗ bằng hàm `BookingOrderDAO.existsConfirmedOverlap(...)`. CSDL xem danh sách giờ của bàn này đã có vé của ai chốt trước trong ngần ấy giây delay hay chưa. 
+6. Nếu Database trả chuỗi `False` (An toàn, không bị chiếm trước), `BookingFacade` mới điều hướng cho `BookingService.updateBookingStatusAndEmployee("DA_XAC_NHAN", employeeId)`. Đổi cờ Status.
+7. Lặp truy vết qua Entity Bàn thuộc về order. `BookingFacade` đẩy qua `TableService.updateTableStatus(tableId, "RESERVED")` khoá chặt lại trạng thái các bàn này.
+8. `TableService` gọi sang `TableDAO.updateStatus()` đổi trạng thái bàn trong thực thể dưới PostgreSQL/DB. 
+9. Hoàn thành trơn tru, Facade trả cờ Boolean `true` mang kết quả "Lưu thông".
+10. Lớp điều khiển `ReceptionistController` đóng FlashAttribute hiển thị chữ `Xác nhận thành công` và làm thủ tục redirect tự refesh.
+11. Màn hình Lễ Tân hiển thị màu thông báo, Refresh mảng giao diện, Bàn đã bị khoá màu đỏ "Có khách đặt".
+
+```mermaid
+sequenceDiagram
+    actor Receptionist as Lễ Tân
+    participant UI as <<Boundary>><br/>dashboard.html
+    participant Ctrl as <<Control>><br/>ReceptionistController
+    participant Fac as <<Facade>><br/>BookingFacade
+    participant BookSvc as <<Service>><br/>BookingService
+    participant BookDAO as <<Repository>><br/>BookingOrderDAO
+    participant TableSvc as <<Service>><br/>TableService
+    participant TableDAO as <<Repository>><br/>TableDAO
+
+    Receptionist->>UI: 1. Ấn nút "XÁC NHẬN" Đơn #OD...
+    activate UI
+    UI->>Ctrl: 2. Gọi POST /confirm/{bookingId}
+    activate Ctrl
+    
+    Ctrl->>Fac: 3. confirmBookingAndUpdateTable(id, employeeId)
+    activate Fac
+    
+    Fac->>BookSvc: 4. findById(bookingId) kéo Data gốc
+    activate BookSvc
+    BookSvc-->>Fac: Trả về đối tượng BookingOrder
+    deactivate BookSvc
+    
+    Fac->>BookDAO: 5. existsConfirmedOverlap(tableId, bookingDate, arrival, end)
+    activate BookDAO
+    BookDAO-->>Fac: Result: False (Không diễn ra trùng kẹt)
+    deactivate BookDAO
+    
+    Fac->>BookSvc: 6. updateBookingStatusAndEmployee("DA_XAC_NHAN", ID Lễ Tân)
+    activate BookSvc
+    BookSvc-->>Fac: SQL UPDATE cập nhật cờ Đơn
+    deactivate BookSvc
+    
+    Fac->>TableSvc: 7. [Vòng Lặp] updateTableStatus(tableId, "RESERVED")
+    activate TableSvc
+    TableSvc->>TableDAO: 8. updateStatus() -> Cập nhật Table CSDL
+    activate TableDAO
+    TableDAO-->>TableSvc: SQL Thực thi xong
+    deactivate TableDAO
+    TableSvc-->>Fac: Done
+    deactivate TableSvc
+    
+    Fac-->>Ctrl: 9. Boolean: True (Duyệt thành công)
+    deactivate Fac
+    
+    Ctrl-->>UI: 10. Redirect Dashboard + Thông điệp Thành công
+    deactivate Ctrl
+    
+    UI-->>Receptionist: 11. Refresh Grid hiển thị Bàn đã bị đổi thành Đã Khóa (Reserved)
+    deactivate UI
+```

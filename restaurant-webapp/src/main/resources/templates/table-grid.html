@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Sơ đồ Quản lý Bàn</title>
+    <!-- Phúng Bootstrap 5 để làm đẹp giao diện HTML nhanh chóng -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .table-box {
+            background-color: #0d6efd;
+            border-radius: 12px;
+            padding: 15px;
+            color: white;
+            position: relative;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .table-actions {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+        }
+        .btn-tiny {
+            background-color: rgba(255,255,255,0.9);
+            color: #333;
+            border: none;
+            border-radius: 4px;
+            padding: 3px 8px;
+            font-size: 12px;
+            text-decoration: none;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .btn-tiny:hover {
+            background-color: white;
+            color: black;
+        }
+        .table-title {
+            font-size: 28px;
+            font-weight: 700;
+            margin-top: 15px;
+            margin-bottom: 0;
+            line-height: 1.2;
+        }
+        .table-subtitle {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 2px 0;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navigation Bar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="#">Nhà Hàng KTTK</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin/dishes">Quản lý Món ăn</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/admin/tables">Quản lý Bàn</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link text-warning" href="/logout">Đăng xuất</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Sơ đồ bàn</h2>
+        <a th:href="@{/admin/tables/add}" class="btn btn-primary">+ Thêm bàn mới</a>
+    </div>
+
+    <!-- Thanh công cụ tìm kiếm & bộ lọc theo Khu vực -->
+    <div class="card mb-4 shadow-sm border-0">
+        <div class="card-body bg-white rounded">
+            <form class="row g-3" action="/admin/tables" method="get">
+                <div class="col-md-9">
+                    <select class="form-select" name="area">
+                        <option value="">-- Tất cả khu vực --</option>
+                        <option value="Tầng 1" th:selected="${param.area != null and param.area[0] == 'Tầng 1'}">Tầng 1</option>
+                        <option value="Tầng 2" th:selected="${param.area != null and param.area[0] == 'Tầng 2'}">Tầng 2</option>
+                        <option value="VIP" th:selected="${param.area != null and param.area[0] == 'VIP'}">Phòng VIP</option>
+                        <option value="Ban công" th:selected="${param.area != null and param.area[0] == 'Ban công'}">Ban công (Sân thượng)</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-dark w-100">Lọc bàn</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Grid View / Sơ đồ lưới hiển thị bàn -->
+    <div class="row">
+        <th:block th:each="tab : ${tables}">
+            <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="table-box">
+                    
+                    <div class="table-actions">
+                        <a th:href="@{/admin/tables/edit/{id}(id=${tab.id})}" class="btn-tiny">Sửa</a>
+                        <form th:action="@{/admin/tables/delete/{id}(id=${tab.id})}" method="post" class="d-inline" onsubmit="return confirm('Bạn có chắc muốn xóa bàn này?');">
+                            <button type="submit" class="btn-tiny">Xóa</button>
+                        </form>
+                    </div>
+
+                    <div>
+                        <h4 class="table-title" th:text="${tab.tableCode}">A-01</h4>
+                        <p class="table-subtitle" th:text="${tab.area}">Tầng 1</p>
+                        <p class="table-subtitle"><span th:text="${tab.capacity}">5</span> Ghế</p>
+                    </div>
+                </div>
+            </div>
+        </th:block>
+        
+        <div th:if="${#lists.isEmpty(tables)}" class="col-12 text-center text-muted my-5">
+            Không tìm thấy bàn nào theo tiêu chí lọc.
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

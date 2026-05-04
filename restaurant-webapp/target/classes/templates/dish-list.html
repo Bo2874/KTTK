@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Danh sách Món ăn</title>
+    <!-- Phúng Bootstrap 5 để làm đẹp giao diện HTML nhanh chóng -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- Navigation Bar -->
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="#">Nhà Hàng KTTK</a>
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link active" href="/admin/dishes">Quản lý Món ăn</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/admin/tables">Quản lý Bàn</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link text-warning" href="/logout">Đăng xuất</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Quản lý Thực đơn (Món ăn)</h2>
+        <!-- Nút gọi GET /admin/dishes/new dẫn sang Cờ Form Thêm -->
+        <a th:href="@{/admin/dishes/new}" class="btn btn-primary">+ Thêm món mới</a>
+    </div>
+
+    <!-- Thanh công cụ tìm kiếm & bộ lọc -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body bg-light">
+            <form class="row g-3" action="/admin/dishes" method="get">
+                <div class="col-md-5">
+                    <input type="text" class="form-control" name="keyword" 
+                           placeholder="Tìm kiếm theo mã, tên món..." 
+                           th:value="${keyword}">
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" name="category">
+                        <option value="">-- Tất cả danh mục --</option>
+                        <option value="Khai vị" th:selected="${category == 'Khai vị'}">Khai vị</option>
+                        <option value="Món chính" th:selected="${category == 'Món chính'}">Món chính</option>
+                        <option value="Tráng miệng" th:selected="${category == 'Tráng miệng'}">Tráng miệng</option>
+                        <option value="Đồ uống" th:selected="${category == 'Đồ uống'}">Đồ uống</option>
+                        <option value="Combo" th:selected="${category == 'Combo'}">Combo</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-dark w-100">
+                        Lọc / Tìm
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <table class="table table-bordered table-hover align-middle">
+        <thead class="table-dark">
+        <tr>
+            <th>ID</th>
+            <th>Mã món</th>
+            <th>Tên Món</th>
+            <th>Danh mục</th>
+            <th>Giá bán (VNĐ)</th>
+            <th>Trạng thái</th>
+            <th class="text-center">Thao tác</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- Lặp mảng "dishes" được gửi từ DishController thông qua Model -->
+        <tr th:each="dish : ${dishes}">
+            <td th:text="${dish.id}">1</td>
+            <td th:text="${dish.dishCode}">M1</td>
+            <td th:text="${dish.name}">Gà rán</td>
+            <td th:text="${dish.category}">Món chính</td>
+            <!-- Định dạng tiền tệ -->
+            <td th:text="${#numbers.formatDecimal(dish.price, 0, 'COMMA', 0, 'POINT')}">50,000</td>
+            <td>
+                <!-- Nút hiển thị Có sẵn hay Hết hàng (Đỏ / Xanh) -->
+                <span th:if="${dish.isAvailable}" class="badge bg-success">Đang phục vụ</span>
+                <span th:unless="${dish.isAvailable}" class="badge bg-danger">Hết hàng</span>
+            </td>
+            <td class="text-center">
+                <!-- Nút Sửa: Chuyển hướng sang Form với ID -->
+                <a th:href="@{/admin/dishes/edit/{id}(id=${dish.id})}" class="btn btn-sm btn-info text-white">Sửa</a>
+                
+                <!-- Form Đổi trạng thái (Bắn POST request về DishController báo Hết hàng/Mở lại) -->
+                <form th:action="@{/admin/dishes/{id}/status(id=${dish.id})}" method="post" style="display:inline;">
+                    <!-- Đảo ngược trạng thái hiện tại -->
+                    <input type="hidden" name="isAvailable" th:value="${!dish.isAvailable}">
+                    
+                    <!-- Dữ liệu true thì hiện nút Báo hết, false thì hiện nút Mở bán -->
+                    <button type="submit" th:if="${dish.isAvailable}" class="btn btn-sm btn-warning">Báo hết</button>
+                    <button type="submit" th:unless="${dish.isAvailable}" class="btn btn-sm btn-success">Mở bán lại</button>
+                </form>
+                
+                <!-- Form Xóa Món (Bắn POST request delete) -->
+                <form th:action="@{/admin/dishes/delete/{id}(id=${dish.id})}" method="post" style="display:inline;">
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Bạn có chắc muốn xóa món ăn này không? Hành động này không thể hoàn tác!')">Xóa</button>
+                </form>
+            </td>
+        </tr>
+        <!-- Nếu mảng rỗng (database chưa có dữ liệu) -->
+        <tr th:if="${#lists.isEmpty(dishes)}">
+            <td colspan="7" class="text-center">Hiện chưa có món ăn nào trong menu.</td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

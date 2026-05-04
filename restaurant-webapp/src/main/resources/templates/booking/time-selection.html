@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Đặt Bàn Online - Chọn Giờ Dùng Bữa</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .slot-btn {
+            min-width: 92px;
+        }
+    </style>
+</head>
+<body class="bg-light">
+<div class="container py-5" style="max-width: 720px;">
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-4">
+            <h3 class="mb-2">Chọn giờ dùng bữa</h3>
+            <p class="text-muted mb-4">Nhà hàng hân hạnh phục vụ quý khách tối đa <strong>2 giờ</strong> cho mỗi lượt đặt, tính từ thời điểm quý khách đến.</p>
+
+            <div th:if="${error}" class="alert alert-danger" th:text="${error}"></div>
+
+            <form id="timeSelectionForm" th:action="@{/booking/find-tables}" method="post" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Ngày dùng bữa</label>
+                    <input type="date"
+                           class="form-control"
+                           id="bookingDate"
+                           name="date"
+                           th:value="${selectedDate}"
+                           required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Giờ đến</label>
+                      <input type="text"
+                           class="form-control"
+                           id="arrivalTime"
+                           name="time"
+                          inputmode="numeric"
+                          placeholder="HH:mm (ví dụ: 17:30)"
+                          pattern="^([01]\d|2[0-3]):([0-5]\d)$"
+                           th:value="${selectedTime}"
+                           required>
+                      <div class="form-text">Nhập giờ theo chuẩn 24h từ 00:00 đến 23:59 (không dùng SA/CH).</div>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Giờ kết thúc (tự động)</label>
+                    <input type="text" class="form-control bg-light" id="endTimeDisplay" readonly>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Khung giờ gợi ý nhanh</label>
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-outline-secondary btn-sm slot-btn" data-time-slot="11:30">11:30</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm slot-btn" data-time-slot="12:00">12:00</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm slot-btn" data-time-slot="18:00">18:00</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm slot-btn" data-time-slot="19:00">19:00</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm slot-btn" data-time-slot="20:00">20:00</button>
+                    </div>
+                </div>
+
+                <div class="col-12 d-flex justify-content-between mt-3">
+                    <div class="d-flex gap-2">
+                        <a th:href="@{/booking/home}" class="btn btn-outline-secondary">Quay lại trang chủ</a>
+                        <a href="/logout" class="btn btn-outline-danger">Đăng xuất</a>
+                    </div>
+                    <button type="submit" class="btn btn-primary px-4">Tìm bàn trống</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const form = document.getElementById('timeSelectionForm');
+        const dateInput = document.getElementById('bookingDate');
+        const arrivalInput = document.getElementById('arrivalTime');
+        const endTimeDisplay = document.getElementById('endTimeDisplay');
+        const slotButtons = document.querySelectorAll('[data-time-slot]');
+
+        function parse24HourTime(value) {
+            if (!value) {
+                return null;
+            }
+            const normalized = value.trim();
+            const match = normalized.match(/^([01]\d|2[0-3]):([0-5]\d)$/);
+            if (!match) {
+                return null;
+            }
+            return {
+                hours: Number(match[1]),
+                minutes: Number(match[2])
+            };
+        }
+
+        function validateArrivalTime() {
+            const parsed = parse24HourTime(arrivalInput.value);
+            if (!parsed) {
+                arrivalInput.setCustomValidity('Vui lòng nhập giờ theo định dạng 24h HH:mm (00:00 - 23:59).');
+                return false;
+            }
+
+            arrivalInput.setCustomValidity('');
+            return true;
+        }
+
+        function pad2(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        function formatTime(hours, minutes) {
+            return pad2(hours) + ':' + pad2(minutes);
+        }
+
+        function calculateEndTime(startTime) {
+            const parsed = parse24HourTime(startTime);
+            if (!parsed) {
+                return '';
+            }
+
+            const base = new Date();
+            base.setHours(parsed.hours, parsed.minutes, 0, 0);
+
+            const end = new Date(base.getTime());
+            end.setHours(end.getHours() + 2);
+
+            const crossesDay = end.getDate() !== base.getDate();
+            const text = formatTime(end.getHours(), end.getMinutes());
+            return crossesDay ? text + ' (+1 ngày)' : text;
+        }
+
+        function refreshEndTime() {
+            endTimeDisplay.value = calculateEndTime(arrivalInput.value) || 'Chưa chọn giờ đến';
+        }
+
+        function ensureDefaultDate() {
+            if (!dateInput.value) {
+                const now = new Date();
+                const yyyy = now.getFullYear();
+                const mm = pad2(now.getMonth() + 1);
+                const dd = pad2(now.getDate());
+                dateInput.value = `${yyyy}-${mm}-${dd}`;
+            }
+            dateInput.min = dateInput.value;
+        }
+
+        function ensureDefaultArrival() {
+            if (arrivalInput.value) {
+                return;
+            }
+
+            const now = new Date();
+            now.setSeconds(0, 0);
+            let h = now.getHours();
+            let m = now.getMinutes();
+
+            if (h < 8) {
+                h = 8;
+                m = 0;
+            }
+            if (h > 21 || (h === 21 && m > 0)) {
+                h = 21;
+                m = 0;
+            }
+
+            arrivalInput.value = formatTime(h, m);
+        }
+
+        slotButtons.forEach((button) => {
+            button.addEventListener('click', function () {
+                const slot = this.getAttribute('data-time-slot');
+                if (slot) {
+                    arrivalInput.value = slot;
+                    validateArrivalTime();
+                    refreshEndTime();
+                }
+            });
+        });
+
+        arrivalInput.addEventListener('input', function () {
+            validateArrivalTime();
+            refreshEndTime();
+        });
+
+        if (form) {
+            form.addEventListener('submit', function (event) {
+                if (!validateArrivalTime()) {
+                    event.preventDefault();
+                    arrivalInput.reportValidity();
+                }
+            });
+        }
+
+        ensureDefaultDate();
+        ensureDefaultArrival();
+        validateArrivalTime();
+        refreshEndTime();
+    })();
+</script>
+</body>
+</html>
