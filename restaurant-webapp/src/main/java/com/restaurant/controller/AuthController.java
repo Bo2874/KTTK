@@ -100,8 +100,8 @@ public class AuthController {
 		String inputPhone = phone == null ? "" : phone.trim();
 		String inputEmail = email == null ? "" : email.trim();
 		String inputUsername = username == null ? "" : username.trim();
-		String inputPassword = password == null ? "" : password;
-		String inputConfirm = confirmPassword == null ? "" : confirmPassword;
+		String inputPassword = password == null ? "" : password.trim();
+		String inputConfirm = confirmPassword == null ? "" : confirmPassword.trim();
 
 		// Giữ lại giá trị đã nhập để hiển thị lại khi có lỗi
 		model.addAttribute("fullName", inputFullName);
@@ -164,7 +164,7 @@ public class AuthController {
 		customer.setPassword(inputPassword);
 		customerDAO.save(customer);
 
-		return "redirect:/login?registered";
+		return "redirect:/login?registered=1";
 	}
 
 	private HttpSession resetSession(HttpServletRequest request) {
