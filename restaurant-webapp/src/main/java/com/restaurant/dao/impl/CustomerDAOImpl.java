@@ -6,6 +6,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.NoResultException;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -61,6 +62,7 @@ public class CustomerDAOImpl implements CustomerDAO {
 	}
 
 	@Override
+	@Transactional
 	public Customer save(Customer customer) {
 		if (customer.getId() == null) {
 			entityManager.persist(customer);
