@@ -14,10 +14,14 @@
             <p class="text-muted">Đăng nhập</p>
         </div>
         
+        <div th:if="${param.registered}" class="alert alert-success text-center" role="alert">
+            Đăng ký thành công! Vui lòng đăng nhập.
+        </div>
+
         <div th:if="${error}" class="alert alert-danger text-center" role="alert" th:text="${error}">
             Sai tài khoản hoặc mật khẩu
         </div>
-        
+
         <form th:action="@{/login}" method="POST">
             <div class="mb-3">
                 <label class="form-label fw-bold">Tên đăng nhập</label>
@@ -27,9 +31,14 @@
                 <label class="form-label fw-bold">Mật khẩu</label>
                 <input type="password" name="password" class="form-control" required placeholder="Nhập mật khẩu">
             </div>
-            
+
             <button type="submit" class="btn btn-primary w-100 py-2 fw-bold text-uppercase">Đăng nhập</button>
         </form>
+
+        <div class="text-center mt-3">
+            <span class="text-muted">Chưa có tài khoản?</span>
+            <a th:href="@{/register}" class="fw-bold text-decoration-none">Đăng ký ngay</a>
+        </div>
     </div>
     
 </div>

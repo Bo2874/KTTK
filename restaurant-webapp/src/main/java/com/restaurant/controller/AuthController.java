@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -77,6 +78,95 @@ public class AuthController {
 			session.invalidate();
 		}
 		return "redirect:/login";
+	}
+
+	@GetMapping("/register")
+	public String showRegisterForm(HttpSession session) {
+		if (session != null && session.getAttribute("userRole") != null) {
+			return redirectByRole(String.valueOf(session.getAttribute("userRole")));
+		}
+		return "register";
+	}
+
+	@PostMapping("/register")
+	@Transactional
+	public String processRegister(@RequestParam("fullName") String fullName,
+								   @RequestParam("phone") String phone,
+								   @RequestParam("email") String email,
+								   @RequestParam("username") String username,
+								   @RequestParam("password") String password,
+								   @RequestParam("confirmPassword") String confirmPassword,
+								   Model model) {
+
+		String inputFullName = fullName == null ? "" : fullName.trim();
+		String inputPhone = phone == null ? "" : phone.trim();
+		String inputEmail = email == null ? "" : email.trim();
+		String inputUsername = username == null ? "" : username.trim();
+		String inputPassword = password == null ? "" : password;
+		String inputConfirm = confirmPassword == null ? "" : confirmPassword;
+
+		// Giữ lại giá trị đã nhập để hiển thị lại khi có lỗi
+		model.addAttribute("fullName", inputFullName);
+		model.addAttribute("phone", inputPhone);
+		model.addAttribute("email", inputEmail);
+		model.addAttribute("username", inputUsername);
+
+		if (inputFullName.isEmpty() || inputPhone.isEmpty() || inputEmail.isEmpty()
+				|| inputUsername.isEmpty() || inputPassword.isEmpty() || inputConfirm.isEmpty()) {
+			model.addAttribute("error", "Vui lòng nhập đầy đủ tất cả các trường");
+			return "register";
+		}
+
+		if (!inputPhone.matches("^0\\d{9,10}$")) {
+			model.addAttribute("error", "Số điện thoại phải bắt đầu bằng 0 và có 10-11 chữ số");
+			return "register";
+		}
+
+		if (!inputEmail.matches("^[\\w.+-]+@[\\w-]+\\.[\\w.-]+$")) {
+			model.addAttribute("error", "Email không hợp lệ");
+			return "register";
+		}
+
+		if (inputUsername.length() < 4) {
+			model.addAttribute("error", "Tên đăng nhập phải có ít nhất 4 ký tự");
+			return "register";
+		}
+
+		if (inputPassword.length() < 6) {
+			model.addAttribute("error", "Mật khẩu phải có ít nhất 6 ký tự");
+			return "register";
+		}
+
+		if (!Objects.equals(inputPassword, inputConfirm)) {
+			model.addAttribute("error", "Mật khẩu xác nhận không khớp");
+			return "register";
+		}
+
+		if (customerDAO.findByUsername(inputUsername).isPresent()
+				|| employeeDAO.findByUsername(inputUsername).isPresent()) {
+			model.addAttribute("error", "Tên đăng nhập đã tồn tại");
+			return "register";
+		}
+
+		if (customerDAO.findByPhone(inputPhone).isPresent()) {
+			model.addAttribute("error", "Số điện thoại đã được sử dụng");
+			return "register";
+		}
+
+		if (customerDAO.findByEmail(inputEmail).isPresent()) {
+			model.addAttribute("error", "Email đã được sử dụng");
+			return "register";
+		}
+
+		Customer customer = new Customer();
+		customer.setFullName(inputFullName);
+		customer.setPhone(inputPhone);
+		customer.setEmail(inputEmail);
+		customer.setUsername(inputUsername);
+		customer.setPassword(inputPassword);
+		customerDAO.save(customer);
+
+		return "redirect:/login?registered";
 	}
 
 	private HttpSession resetSession(HttpServletRequest request) {

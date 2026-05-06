@@ -48,6 +48,19 @@ public class CustomerDAOImpl implements CustomerDAO {
 	}
 
 	@Override
+	public Optional<Customer> findByEmail(String email) {
+		try {
+			Customer customer = entityManager.createQuery(
+						"SELECT c FROM Customer c WHERE c.email = :email", Customer.class)
+					.setParameter("email", email)
+					.getSingleResult();
+			return Optional.of(customer);
+		} catch (NoResultException ex) {
+			return Optional.empty();
+		}
+	}
+
+	@Override
 	public Customer save(Customer customer) {
 		if (customer.getId() == null) {
 			entityManager.persist(customer);
